@@ -12,9 +12,9 @@ blanco = (255, 255, 255)
 
 pantalla = pygame.display.set_mode(tamano)
 
-fuenteMedia = pygame.font.Font("OpenSans-Regular.ttf", 28)
-fuenteGrande = pygame.font.Font("OpenSans-Regular.ttf", 40)
-fuenteMovimiento = pygame.font.Font("OpenSans-Regular.ttf", 60)
+fuenteMedia = pygame.font.Font("clases y ejercicios\\triqui\\OpenSans-Regular.ttf", 28)
+fuenteGrande = pygame.font.Font("clases y ejercicios\\triqui\\OpenSans-Regular.ttf", 40)
+fuenteMovimiento = pygame.font.Font("clases y ejercicios\\triqui\\OpenSans-Regular.ttf", 60)
 
 usuario = None
 tablero = jugador.estado_inicial()
