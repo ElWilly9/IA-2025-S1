@@ -9,26 +9,26 @@ env = gym.make("FrozenLake-v1",desc=["SF", "FG"], is_slippery=False, render_mode
 action_names = {0:'Arriba', 1:'Abajo', 2:'Derecha',3:'Izquierda'}
 
 print('Número de estados: ', env.observation_space)
-# acciones: izquierda = 0, abajo = 1, derecha = 2 y arriba = 3
+# acciones: Arriba = 0, Abajo = 1, Derecha = 2 y Izquierda = 3
 print('Número de acciones: ', env.action_space)
 
 env.unwrapped.P = {
     0: {  # Estado A
-        0: [(1.0, 0, -1, False)],                     # arriba → se queda en A
-        1: [(0.8, 2, -1, False), (0.2, 0, -1, False)], # abajo → C
-        2: [(0.8, 1, -1, False), (0.2, 0, -1, False)], # derecha → B
-        3: [(1.0, 0, -1, False)]                      # izquierda → se queda en A
+        0: [(1.0, 0, -1, False)],                     # Arriba → se queda en A
+        1: [(0.8, 2, -1, False), (0.2, 0, -1, False)], # Abajo → C
+        2: [(0.8, 1, -1, False), (0.2, 0, -1, False)], # Derecha → B
+        3: [(1.0, 0, -1, False)]                      # Izquierda → se queda en A
     },
     1: {  # Estado B
         0: [(1.0, 1, -1, False)],                     
-        1: [(0.8, 3, 10, True), (0.2, 1, -1, False)],  # abajo → D (terminal)
+        1: [(0.5, 3, 10, True), (0.5, 1, -1, False)],  # Abajo → D (terminal)
         2: [(1.0, 1, -1, False)],                     
-        3: [(0.8, 0, -1, False), (0.2, 1, -1, False)]
+        3: [(0.5, 0, -1, False), (0.5, 1, -1, False)]
     },
     2: {  # Estado C
-        0: [(0.8, 0, -1, False), (0.2, 2, -1, False)],
+        0: [(0.5, 0, -1, False), (0.5, 2, -1, False)],
         1: [(1.0, 2, -1, False)],                     
-        2: [(0.8, 3, 10, True), (0.2, 2, -1, False)],  # derecha → D (terminal)
+        2: [(0.5, 3, 10, True), (0.5, 2, -1, False)],  # Derecha → D (terminal)
         3: [(1.0, 2, -1, False)]
     },
     3: {  # Estado D
@@ -118,7 +118,7 @@ values_print(val_fun_vec)
 actions_print(policy_vec)
 
 env.reset()
-n_episodes_t = 20
+n_episodes_t = 5
 for e in range(1, n_episodes_t+1):
     current_state = env.reset()[0]
     done = False

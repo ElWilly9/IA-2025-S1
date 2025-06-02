@@ -4,7 +4,7 @@ import seaborn as sns
 import numpy as np
 
 #creación del entorno
-env = gym.make("FrozenLake-v1",desc=["SFFF", "FHFF", "FFHF", "FFFG"], is_slippery=False, render_mode="human")
+env = gym.make("FrozenLake-v1",desc=["SFFF", "FHFF", "FFHF", "FFFG"], is_slippery=True, render_mode="human")
 #Acciones
 action_names = {0:'Izquierda', 1:'Abajo', 2:'Derecha',3:'Arriba'}
 
@@ -59,7 +59,7 @@ def policy_iteration(env, discount = 0.9, conv_tolerance=1e-4, max_iterations=10
     #Función de valor
     val_fun_vec = np.zeros(env.observation_space.n)
     #Política
-    policy_vec = np.zeros(env.observation_space.n, dtype=int)
+    policy_vec = np.ones(env.observation_space.n, dtype=int)
     for iterations in range(max_iterations):
         #Evaluación de política
         policy_vec, val_fun_vec, delta = policy_evaluation(env, policy_vec, val_fun_vec, 
