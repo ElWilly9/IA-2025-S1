@@ -99,8 +99,39 @@ def policy_iteration(env, discount = 0.9, conv_tolerance=1e-4, max_iterations=10
         if np.all(policy_stable_vec == True):
             return policy_vec, val_fun_vec
         
+def value_iteration(env, discount=0.9, conv_tolerance=1e-4, max_iterations=100):
+    """Algoritmo de iteración de valores"""
+    val_fun_vec = np.zeros(env.observation_space.n)
+    for i in range(max_iterations):
+        delta = 0
+        for state in env.unwrapped.P:
+            v = val_fun_vec[state]
+            action_values = np.zeros(env.action_space.n)
+            for action in env.unwrapped.P[state]:
+                action_values[action] = sum([
+                    prob * (reward + discount * val_fun_vec[next_state])
+                    for prob, next_state, reward, is_terminal in env.unwrapped.P[state][action]
+                ])
+            val_fun_vec[state] = np.max(action_values)
+            delta = max(delta, abs(v - val_fun_vec[state]))
+        if delta < conv_tolerance:
+            break
+    # Derivar la política óptima a partir de la función de valor
+    policy_vec = np.zeros(env.observation_space.n, dtype=int)
+    for state in env.unwrapped.P:
+        action_values = np.zeros(env.action_space.n)
+        for action in env.unwrapped.P[state]:
+            action_values[action] = sum([
+                prob * (reward + discount * val_fun_vec[next_state])
+                for prob, next_state, reward, is_terminal in env.unwrapped.P[state][action]
+            ])
+        policy_vec[state] = np.argmax(action_values)
+    return policy_vec, val_fun_vec
+
+        
 #ejecución del algoritmo de policy iteration
 policy_vec, val_fun_vec = policy_iteration(env, discount=0.5)
+policy_vec_vi, val_fun_vec_vi = value_iteration(env, discount=0.5)
 
 def values_print(valueFunction,reshapeDim=2):
     ax = sns.heatmap(valueFunction.reshape(reshapeDim,reshapeDim),annot=True, square=True,cbar=False, 
@@ -115,7 +146,9 @@ def actions_print(policy_vec,reshapeDim=2):
     plt.show()
 
 values_print(val_fun_vec)
+values_print(val_fun_vec_vi)
 actions_print(policy_vec)
+actions_print(policy_vec_vi)
 
 env.reset()
 n_episodes_t = 5
@@ -137,4 +170,5 @@ for e in range(1, n_episodes_t+1):
     print('Episodio: {}\n\tAcciones: {};\n\tPuntaje: {}'.format(e, actions, score))
     
 env.close()
+
 
