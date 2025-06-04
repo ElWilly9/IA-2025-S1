@@ -132,8 +132,8 @@ def value_iteration(env, discount=0.9, conv_tolerance=1e-4, max_iterations=100):
 
         
 #ejecución del algoritmo de policy iteration
-policy_vec, val_fun_vec = policy_iteration(env, discount=0.5)
-policy_vec_vi, val_fun_vec_vi = value_iteration(env, discount=0.5)
+policy_vec, val_fun_vec = policy_iteration(env, discount=0.9)
+policy_vec_vi, val_fun_vec_vi = value_iteration(env, discount=0.9)
 
 def values_print(valueFunction,reshapeDim=2):
     ax = sns.heatmap(valueFunction.reshape(reshapeDim,reshapeDim),annot=True, square=True,cbar=False, 
@@ -149,6 +149,26 @@ def actions_print(policy_vec,reshapeDim=2):
 
 values_print(val_fun_vec)
 actions_print(policy_vec)
+
+env.reset()
+n_episodes_t = 5
+for e in range(1, n_episodes_t+1):
+    current_state = env.reset()[0]
+    done = False
+    score = 0
+    actions = []
+    while done == False:
+        #Acción ambiciosa
+        action = policy_vec[current_state]
+        actions.append(action_names[action])
+        #Se obtienen los resultados del ambiente por la acción elegida
+        state, reward, done, _,_= env.step(action)
+        score += reward
+        #Se transita al nuevo estado
+        current_state = state
+
+    print('Episodio: {}\n\tAcciones: {};\n\tPuntaje: {}'.format(e, actions, score))
+
 values_print(val_fun_vec_vi)
 actions_print(policy_vec_vi)
 
@@ -162,7 +182,7 @@ for e in range(1, n_episodes_t+1):
     actions = []
     while done == False:
         #Acción ambiciosa
-        action = policy_vec[current_state]
+        action = policy_vec_vi[current_state]
         actions.append(action_names[action])
         #Se obtienen los resultados del ambiente por la acción elegida
         state, reward, done, _,_= env.step(action)
