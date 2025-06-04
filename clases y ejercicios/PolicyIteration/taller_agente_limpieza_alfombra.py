@@ -132,8 +132,8 @@ def value_iteration(env, discount=0.9, conv_tolerance=1e-4, max_iterations=100):
 
         
 #ejecución del algoritmo de policy iteration
-policy_vec, val_fun_vec = policy_iteration(env, discount=0.5)
-policy_vec_vi, val_fun_vec_vi = value_iteration(env, discount=0.5)
+policy_vec, val_fun_vec = policy_iteration(env, discount=0.9)
+policy_vec_vi, val_fun_vec_vi = value_iteration(env, discount=0.9)
 
 def values_print(valueFunction,reshapeDim=2):
     ax = sns.heatmap(valueFunction.reshape(reshapeDim,reshapeDim),annot=True, square=True,cbar=False, 
