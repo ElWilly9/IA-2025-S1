@@ -12,6 +12,7 @@ print('Número de estados: ', env.observation_space)
 # acciones: Arriba = 0, Abajo = 1, Derecha = 2 y Izquierda = 3
 print('Número de acciones: ', env.action_space)
 
+#Estado, accion, probabilidad de transición, siguiente estado, recompensa, es_terminal
 env.unwrapped.P = {
     0: {  # Estado A
         0: [(1.0, 0, -1, False)],                     # Arriba → se queda en A
@@ -102,8 +103,8 @@ def policy_iteration(env, discount = 0.9, conv_tolerance=1e-4, max_iterations=10
 def value_iteration(env, discount=0.9, conv_tolerance=1e-4, max_iterations=100):
     """Algoritmo de iteración de valores"""
     val_fun_vec = np.zeros(env.observation_space.n)
+    delta = 0
     for i in range(max_iterations):
-        delta = 0
         for state in env.unwrapped.P:
             v = val_fun_vec[state]
             action_values = np.zeros(env.action_space.n)
