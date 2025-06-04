@@ -138,7 +138,7 @@ policy_vec_vi, val_fun_vec_vi = value_iteration(env, discount=0.5)
 def values_print(valueFunction,reshapeDim=2):
     ax = sns.heatmap(valueFunction.reshape(reshapeDim,reshapeDim),annot=True, square=True,cbar=False, 
                      cmap='Blues',xticklabels=False, yticklabels=False)
-    plt.title('Función de valor por cada estado')
+    plt.title(f'Función de valor por cada estado')
     plt.show()
 
 def actions_print(policy_vec,reshapeDim=2):
@@ -148,9 +148,10 @@ def actions_print(policy_vec,reshapeDim=2):
     plt.show()
 
 values_print(val_fun_vec)
-values_print(val_fun_vec_vi)
 actions_print(policy_vec)
+values_print(val_fun_vec_vi)
 actions_print(policy_vec_vi)
+
 
 env.reset()
 n_episodes_t = 5
