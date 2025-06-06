@@ -74,7 +74,7 @@ def new_Q_value( reward : float , action, current_state, new_state : tuple , dis
 num_episodio = []         #lista donde se irán guardando el número de episodio
 puntajes_ep = []          #lista donde se irán guardando los puntajes por episodio
 
-n_episodes = 500         #se entrenará al agente con 1000 episodios
+n_episodes = 20         #se entrenará al agente con 1000 episodios
 
 for e in range(1, n_episodes+1):
 
