@@ -20,6 +20,7 @@ with sr.Microphone() as source:
         engine.setProperty('rate', 120)  # Velocidad de habla
         engine.setProperty('volume', 1)  # Volumen (0.0 a 1.0)
         engine.say(text)
+        engine.save_to_file(text, "answer.mp3")  # Guardar el texto a voz en un archivo MP3
         engine.runAndWait()
     except:
         print("Lo siento, no pude entender el audio.")
