@@ -16,7 +16,7 @@ from langchain.docstore.document import Document
 OPENAI_API_KEY = "tu-api-key-aqui"  # Reemplaza con tu API key real
 os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
 
-llm = ChatOpenAI(model="gpt-4")  # o el modelo que prefieras usar
+llm = ChatOpenAI(model="gpt-4.1")  # o el modelo que prefieras usar
 
 #query
 llm.invoke("¿Donde se va a transmitir WWE RAW en 2025?").content
