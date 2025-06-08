@@ -1,0 +1,14 @@
+langchain
+chromadb
+fastapi
+uvicorn
+python-dotenv
+google-cloud-aiplatform  # Para usar la API de Gemini
+pdfplumber  # Para leer PDFs
+pyttsx3  # Para convertir texto a voz
+speechrecognition  # Para reconocimiento de voz
+pyaudio  # Para grabar audio
+pydub  # Para manipular audio
+langchain_google_vertexai 
+langchain-community
+pypdf
