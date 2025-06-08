@@ -1,6 +1,6 @@
 from google import genai
 
-key = "mi clave"
+key = "AIzaSyDHgW3Dqou631Yb2BQV1eHPzv2OCXUfIR0"
 query = "conces acerca de la moto bajaj boxer ct100 KS?"
 
 client = genai.Client(api_key=key)
