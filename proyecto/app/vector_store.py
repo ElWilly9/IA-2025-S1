@@ -1,8 +1,8 @@
 from langchain.vectorstores import Chroma
-from langchain.embeddings import FakeEmbeddings
+from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
 from . import config
 
-embedding = FakeEmbeddings(size=768)
+embedding = FastEmbedEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
 def get_vectorstore():
     return Chroma(persist_directory=config.CHROMA_DB_DIR, embedding_function=embedding)
