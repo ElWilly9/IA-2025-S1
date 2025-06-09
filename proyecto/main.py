@@ -10,6 +10,10 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import PromptTemplate
 import pdfplumber
 from langchain.schema import Document
+import speech_recognition as sr
+import pyttsx3
+import logging
+import time
 
 # Cargar variables de entorno
 load_dotenv()
@@ -21,6 +25,8 @@ DOCS_DIR = "./data/"
 # Text Processing
 CHUNK_SIZE = 2000  
 CHUNK_OVERLAP = 200  
+
+PERSIST_DIR = "./chroma_db"
 
 # Paso 1: Cargar y chunkear PDFs
 def load_and_chunk_pdfs():
@@ -66,9 +72,25 @@ def load_and_chunk_pdfs():
     return chunks
 
 # Paso 2: Crear base de datos vectorial
-def create_vector_store(chunks):
+def create_or_load_vector_store(chunks, persist_directory=PERSIST_DIR, force_reload=False):
     embeddings = HuggingFaceEmbeddings(model_name="multi-qa-distilbert-cos-v1")
-    vector_store = Chroma.from_documents(chunks, embeddings, collection_name="bajaj_boxer")
+    if force_reload and os.path.exists(persist_directory):
+        import shutil
+        shutil.rmtree(persist_directory)
+
+    if os.path.exists(persist_directory) and os.listdir(persist_directory):
+        vector_store = Chroma(
+            collection_name="bajaj_boxer",
+            embedding_function=embeddings,
+            persist_directory=persist_directory
+        )
+    else:
+        vector_store = Chroma.from_documents(
+            chunks,
+            embeddings,
+            collection_name="bajaj_boxer",
+            persist_directory=persist_directory
+        )
     return vector_store
 
 # Paso 3: Configurar el sistema RAG
@@ -90,7 +112,7 @@ def setup_rag(vector_store):
     PREGUNTA DEL USUARIO: {question}
 
     INSTRUCCIONES PARA TU RESPUESTA:
-    - Responde ÚNICAMENTE sobre la Bajaj Boxer CT100 KS
+    - Responde ÚNICAMENTE sobre la Bajaj Boxer CT100 KS y si hablaras de otra moto, especificalo
     - Usa un tono cordial, natural y profesional en español
     - Basa tu respuesta en la información del contexto proporcionado
     - Si la información está en una tabla, incluye los valores específicos
@@ -98,13 +120,13 @@ def setup_rag(vector_store):
     - Proporciona respuestas prácticas y útiles para el usuario
     - Incluye detalles técnicos relevantes cuando sea apropiado
     - Si mencionas especificaciones técnicas, cita los valores exactos
-    - Mantén la respuesta completa pero concisa
+    - Mantén la respuesta completa pero concisa, no la hagas tan extensa
 
     RESPUESTA:
     """ 
     prompt = PromptTemplate(input_variables=["question", "context"], template=prompt_template)
     
-    retriever = vector_store.as_retriever(search_kwargs={"k": 8})
+    retriever = vector_store.as_retriever(search_kwargs={"k": 4})
     rag_chain = RetrievalQA.from_chain_type(
         llm=llm,
         chain_type="stuff",
@@ -116,31 +138,44 @@ def setup_rag(vector_store):
 
 # Paso 4: Ciclo interactivo en consola
 def main():
-    print("Cargando documentos...")
-    chunks = load_and_chunk_pdfs()
-    print(f"Se cargaron {len(chunks)} fragmentos de documentos.")
-    print_document_samples(chunks)  # Agregar esta línea
-    
-    print("Creando base de datos vectorial...")
-    vector_store = create_vector_store(chunks)
-    
+    print("¿Quieres (C)argar la base vectorial existente o (R)ecrearla con los documentos actuales?")
+    op = input("Escribe C para cargar o R para recrear: ").strip().lower()
+    force_reload = (op == "r")
+
+    if force_reload:
+        print("Cargando y procesando documentos...")
+        chunks = load_and_chunk_pdfs()
+        print(f"Se cargaron {len(chunks)} fragmentos de documentos.")
+        print_document_samples(chunks)
+    else:
+        chunks = []
+
+    print("Cargando base de datos vectorial...")
+    vector_store = create_or_load_vector_store(chunks, force_reload=force_reload)
+
     print("Configurando sistema RAG...")
     rag_chain = setup_rag(vector_store)
-    
+
     print("\n¡Asistente virtual para Bajaj Boxer CT100 KS listo!")
-    print("Escribe tu pregunta (o 'salir' para terminar):")
-    
+    print("Di tu pregunta (o 'salir' para terminar):")
+
     while True:
-        query = input("🧠> ")
-        if query.lower() == ["salir", "quit", "exit"]:
+        query = escuchar_query()
+        if not query:
+            continue
+        if query.lower() == "salir":
             break
-        
+
         result = rag_chain.invoke({"query": query})
-        print("\nRespuesta 🤖:", result["result"])
-        #print("\nFuentes:")
-        #for doc in result["source_documents"]:
-        #    print(f"- {doc.metadata.get('source', 'Desconocido')}: {doc.page_content[:100]}...")
-    
+        respuesta = result["result"]
+        print("\nRespuesta 🤖:", respuesta)
+        decir_respuesta(respuesta)
+
+        # Preguntar si desea hacer otra consulta o salir
+        opcion = input("\n¿Quieres hacer otra consulta? (S para sí, cualquier otra tecla para salir): ").strip().lower()
+        if opcion != "s":
+            break
+
     print("¡Gracias por usar el asistente!")
 
 def print_document_samples(chunks):
@@ -152,5 +187,40 @@ def print_document_samples(chunks):
         print("Contenido:")
         print(chunk.page_content[:200] + "...")  # Primeros 200 caracteres
 
+def escuchar_query():
+    r = sr.Recognizer()
+    with sr.Microphone() as source:
+        print("preparate para hablar en 3...")
+        time.sleep(1)
+        print("preparate para hablar en 2...")
+        time.sleep(1)
+        print("preparate para hablar en 1... ")
+        time.sleep(1)
+        print("Habla ahora. La grabación terminará cuando te quedes en silencio...")
+        time.sleep(0.5)
+        r.adjust_for_ambient_noise(source, duration=1.3)
+        audio = r.listen(source, timeout=None, phrase_time_limit=None)
+        os.makedirs("audio", exist_ok=True)
+        with open("audio/query.wav", "wb") as f:
+            f.write(audio.get_wav_data())
+        try:
+            print("Espere un momento, procesando...")
+            text = r.recognize_google(audio, language='es-ES')
+            print("Texto reconocido:", text)
+            return text
+        except:
+            print("Lo siento, no pude entender el audio.")
+            return None
+
+def decir_respuesta(texto):
+    engine = pyttsx3.init()
+    engine.setProperty('rate', 170)
+    engine.setProperty('volume', 1)
+    os.makedirs("audio", exist_ok=True)
+    engine.say(texto)
+    engine.save_to_file(texto, "audio/answer.mp3")
+    engine.runAndWait()
+
 if __name__ == "__main__":
+    logging.getLogger("pdfminer").setLevel(logging.ERROR) #para que no salga los warnings de pdflumber
     main()
