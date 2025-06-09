@@ -15,3 +15,5 @@ pydub>=0.25.1
 pypdf>=4.0.1
 pypdf2
 sentence-transformers
+dotenv
+langchain_chroma

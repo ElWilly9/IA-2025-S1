@@ -1,16 +1,13 @@
 import os
 from dotenv import load_dotenv
-from langchain_community.document_loaders import PyPDFLoader
-from langchain.text_splitter import CharacterTextSplitter
+from langchain.text_splitter import CharacterTextSplitter, RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.chains import RetrievalQA
-from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import PromptTemplate
 import pdfplumber
 from langchain.schema import Document
-import speech_recognition as sr
 import pyttsx3
 import logging
 from voz_text import query_voz
@@ -23,8 +20,8 @@ api_key = os.getenv("GEMINI_API_KEY")  # Asegúrate de tener .env con GEMINI_API
 DOCS_DIR = "./data/"
 
 # Text Processing
-CHUNK_SIZE = 2000  
-CHUNK_OVERLAP = 200  
+CHUNK_SIZE = 1000  
+CHUNK_OVERLAP = 100  
 
 PERSIST_DIR = "./chroma_db"
 
@@ -62,18 +59,17 @@ def load_and_chunk_pdfs():
                     documents.append(doc)
     
     # Dividir documentos en fragmentos
-    text_splitter = CharacterTextSplitter(
+    text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=CHUNK_SIZE,
         chunk_overlap=CHUNK_OVERLAP,
-        length_function=len,
-        separator="\n"  # Dividir por líneas para mantener coherencia
+        separators=["\n\n", "\n", ".", " "]
     )
     chunks = text_splitter.split_documents(documents)
     return chunks
 
 # Paso 2: Crear base de datos vectorial
 def create_or_load_vector_store(chunks, persist_directory=PERSIST_DIR, force_reload=False):
-    embeddings = HuggingFaceEmbeddings(model_name="multi-qa-distilbert-cos-v1")
+    embeddings = HuggingFaceEmbeddings(model_name="intfloat/multilingual-e5-base")  
     if force_reload and os.path.exists(persist_directory):
         import shutil
         shutil.rmtree(persist_directory)
@@ -97,8 +93,7 @@ def create_or_load_vector_store(chunks, persist_directory=PERSIST_DIR, force_rel
 def setup_rag(vector_store):
     llm = ChatGoogleGenerativeAI(
         model="gemini-2.0-flash",
-        google_api_key=api_key,
-        temperature=0.2
+        google_api_key=api_key
     )
     
     # Prompt personalizado para tono natural y cordial
@@ -126,7 +121,7 @@ def setup_rag(vector_store):
     """ 
     prompt = PromptTemplate(input_variables=["question", "context"], template=prompt_template)
     
-    retriever = vector_store.as_retriever(search_kwargs={"k": 4})
+    retriever = vector_store.as_retriever(search_kwargs={"k": 8})
     rag_chain = RetrievalQA.from_chain_type(
         llm=llm,
         chain_type="stuff",
@@ -172,8 +167,8 @@ def main():
         decir_respuesta(respuesta)
 
         # Preguntar si desea hacer otra consulta o salir
-        opcion = input("\n¿Quieres hacer otra consulta? (S para sí, cualquier otra tecla para salir): ").strip().lower()
-        if opcion != "s":
+        opcion = input("\n¿Quieres hacer otra consulta? (S para salir, cualquier otra tecla para hacer una nueva pregunta): ").strip().lower()
+        if opcion == "s":
             break
 
     print("¡Gracias por usar el asistente!")
