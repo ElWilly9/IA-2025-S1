@@ -1,261 +1,156 @@
 import os
-import glob
-from pathlib import Path
-import chromadb
-from chromadb.config import Settings
-from google import genai
-import PyPDF2
-from typing import List, Dict
-import uuid
+from dotenv import load_dotenv
+from langchain_community.document_loaders import PyPDFLoader
+from langchain.text_splitter import CharacterTextSplitter
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_chroma import Chroma
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain.chains import RetrievalQA
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import PromptTemplate
+import pdfplumber
+from langchain.schema import Document
 
-class BajajRAGAssistant:
-    def __init__(self, api_key: str, docs_folder: str = "documentos"):
-        """
-        Inicializa el asistente RAG para Bajaj Boxer CT100 KS
-        
-        Args:
-            api_key: Clave API de Google Gemini
-            docs_folder: Carpeta con documentos PDF
-        """
-        self.api_key = "AIzaSyDHgW3Dqou631Yb2BQV1eHPzv2OCXUfIR0"
-        self.docs_folder = "./data/"
-        self.client = genai.Client(api_key=api_key)
-        
-        # Configurar ChromaDB
-        self.chroma_client = chromadb.Client(Settings(
-            persist_directory="./chroma_db",
-            anonymized_telemetry=False 
-        ))
-        
-        # Crear o obtener colección
-        self.collection = self.chroma_client.get_or_create_collection(
-            name="bajaj_boxer_ct100_docs",
-            metadata={"description": "Documentos de Bajaj Boxer CT100 KS"}
-        )
-        
-        print(f"✅ Asistente RAG inicializado")
-        print(f"📁 Carpeta de documentos: {docs_folder}")
-        
-    def extract_text_from_pdf(self, pdf_path: str) -> str:
-        """Extrae texto de un archivo PDF"""
-        try:
-            with open(pdf_path, 'rb') as file:
-                pdf_reader = PyPDF2.PdfReader(file)
-                text = ""
-                for page in pdf_reader.pages:
-                    text += page.extract_text() + "\n"
-                return text.strip()
-        except Exception as e:
-            print(f"❌ Error al leer {pdf_path}: {e}")
-            return ""
-    
-    def chunk_text(self, text: str, chunk_size: int = 500, overlap: int = 50) -> List[str]:
-        """
-        Divide el texto en chunks con overlap
-        
-        Args:
-            text: Texto a dividir
-            chunk_size: Tamaño de cada chunk
-            overlap: Solapamiento entre chunks
-        """
-        words = text.split()
-        chunks = []
-        
-        for i in range(0, len(words), chunk_size - overlap):
-            chunk = " ".join(words[i:i + chunk_size])
-            if chunk.strip():
-                chunks.append(chunk.strip())
-                
-        return chunks
-    
-    def generate_embeddings(self, text: str) -> List[float]:
-        """Genera embeddings usando Gemini"""
-        try:
-            response = self.client.models.embed_content(
-                model="models/text-embedding-004",
-                content=text
-            )
-            return response.embedding
-        except Exception as e:
-            print(f"❌ Error generando embedding: {e}")
-            return []
-    
-    def load_documents(self):
-        """Carga y procesa todos los PDFs de la carpeta"""
-        pdf_files = glob.glob(os.path.join(self.docs_folder, "*.pdf"))
-        
-        if not pdf_files:
-            print(f"⚠️  No se encontraron archivos PDF en {self.docs_folder}")
-            return
-        
-        print(f"📚 Procesando {len(pdf_files)} documentos...")
-        
-        for pdf_file in pdf_files:
-            print(f"📄 Procesando: {os.path.basename(pdf_file)}")
-            
-            # Extraer texto
-            text = self.extract_text_from_pdf(pdf_file)
-            if not text:
-                continue
-                
-            # Dividir en chunks
-            chunks = self.chunk_text(text)
-            print(f"   ✂️  Dividido en {len(chunks)} chunks")
-            
-            # Procesar cada chunk
-            for i, chunk in enumerate(chunks):
-                # Generar embedding
-                embedding = self.generate_embeddings(chunk)
-                if not embedding:
-                    continue
-                
-                # Almacenar en ChromaDB
-                chunk_id = f"{os.path.basename(pdf_file)}_chunk_{i}"
-                self.collection.add(
-                    documents=[chunk],
-                    embeddings=[embedding],
-                    metadatas=[{
-                        "source": os.path.basename(pdf_file),
-                        "chunk_id": i,
-                        "file_path": pdf_file
-                    }],
-                    ids=[chunk_id]
-                )
-            
-            print(f"   ✅ {os.path.basename(pdf_file)} procesado correctamente")
-        
-        print(f"🎉 Todos los documentos cargados exitosamente!")
-    
-    def search_documents(self, query: str, n_results: int = 3) -> List[Dict]:
-        """Busca documentos relevantes usando embeddings"""
-        try:
-            # Generar embedding de la consulta
-            query_embedding = self.generate_embeddings(query)
-            if not query_embedding:
-                return []
-            
-            # Buscar en ChromaDB
-            results = self.collection.query(
-                query_embeddings=[query_embedding],
-                n_results=n_results
-            )
-            
-            # Formatear resultados
-            documents = []
-            for i in range(len(results['documents'][0])):
-                documents.append({
-                    'content': results['documents'][0][i],
-                    'metadata': results['metadatas'][0][i],
-                    'distance': results['distances'][0][i] if 'distances' in results else 0
-                })
-            
-            return documents
-            
-        except Exception as e:
-            print(f"❌ Error en búsqueda: {e}")
-            return []
-    
-    def generate_answer(self, query: str, context_docs: List[Dict]) -> str:
-        """Genera respuesta usando Gemini con contexto"""
-        # Construir contexto
-        context = "\n\n".join([doc['content'] for doc in context_docs])
-        
-        # Prompt especializado para Bajaj Boxer CT100 KS
-        prompt = f"""
-Eres un asistente experto en motocicletas Bajaj Boxer CT100 KS. 
-Responde de manera cordial y natural en español.
+# Cargar variables de entorno
+load_dotenv()
+api_key = os.getenv("GEMINI_API_KEY")  # Asegúrate de tener .env con GEMINI_API_KEY
 
-CONTEXTO RELEVANTE:
-{context}
+# Directorio con PDFs
+DOCS_DIR = "./data/"
 
-PREGUNTA DEL USUARIO: {query}
+# Text Processing
+CHUNK_SIZE = 2000  
+CHUNK_OVERLAP = 200  
 
-INSTRUCCIONES:
-- Responde específicamente sobre la Bajaj Boxer CT100 KS
-- Usa un tono cordial y natural
-- Si la información no está en el contexto, dilo claramente
-- Da respuestas prácticas y útiles
-- Mantén la respuesta concisa pero completa
-
-RESPUESTA:
-"""
-        
-        try:
-            response = self.client.models.generate_content(
-                model="gemini-2.0-flash",
-                contents=prompt
-            )
-            return response.text
-        except Exception as e:
-            return f"❌ Error generando respuesta: {e}"
+# Paso 1: Cargar y chunkear PDFs
+def load_and_chunk_pdfs():
+    documents = []
+    for filename in os.listdir(DOCS_DIR):
+        if filename.endswith(".pdf"):
+            file_path = os.path.join(DOCS_DIR, filename)
+            with pdfplumber.open(file_path) as pdf:
+                for page_num, page in enumerate(pdf.pages):
+                    # Extraer texto
+                    text = page.extract_text()
+                    
+                    # Extraer tablas
+                    tables = page.extract_tables()
+                    table_text = ""
+                    for table in tables:
+                        for row in table:
+                            # Filtrar valores None y convertir a string
+                            row_text = " | ".join(str(cell) if cell is not None else "" for cell in row)
+                            table_text += row_text + "\n"
+                    
+                    # Combinar texto y tablas
+                    combined_text = f"{text}\n\nTablas:\n{table_text}"
+                    
+                    # Crear documento con metadatos
+                    doc = Document(
+                        page_content=combined_text,
+                        metadata={
+                            "source": filename,
+                            "page": page_num + 1
+                        }
+                    )
+                    documents.append(doc)
     
-    def ask(self, query: str) -> str:
-        """Función principal para hacer preguntas"""
-        print(f"\n🤔 Pregunta: {query}")
-        print("🔍 Buscando información relevante...")
-        
-        # Buscar documentos relevantes
-        relevant_docs = self.search_documents(query)
-        
-        if not relevant_docs:
-            return "❌ No encontré información relevante para tu pregunta."
-        
-        print(f"📋 Encontrados {len(relevant_docs)} documentos relevantes")
-        
-        # Generar respuesta
-        answer = self.generate_answer(query, relevant_docs)
-        return answer
-    
-    def interactive_mode(self):
-        """Modo interactivo por consola"""
-        print("\n" + "="*50)
-        print("🏍️  ASISTENTE BAJAJ BOXER CT100 KS")
-        print("="*50)
-        print("Escribe 'salir' para terminar")
-        print("Escribe 'recargar' para volver a cargar documentos")
-        print("-"*50)
-        
-        while True:
-            try:
-                query = input("\n💬 Tu pregunta: ").strip()
-                
-                if query.lower() in ['salir', 'exit', 'quit']:
-                    print("👋 ¡Hasta luego!")
-                    break
-                
-                if query.lower() == 'recargar':
-                    self.load_documents()
-                    continue
-                
-                if not query:
-                    continue
-                
-                # Procesar pregunta
-                answer = self.ask(query)
-                print(f"\n🤖 Respuesta:\n{answer}")
-                
-            except KeyboardInterrupt:
-                print("\n👋 ¡Hasta luego!")
-                break
-            except Exception as e:
-                print(f"❌ Error: {e}")
+    # Dividir documentos en fragmentos
+    text_splitter = CharacterTextSplitter(
+        chunk_size=CHUNK_SIZE,
+        chunk_overlap=CHUNK_OVERLAP,
+        length_function=len,
+        separator="\n"  # Dividir por líneas para mantener coherencia
+    )
+    chunks = text_splitter.split_documents(documents)
+    return chunks
 
+# Paso 2: Crear base de datos vectorial
+def create_vector_store(chunks):
+    embeddings = HuggingFaceEmbeddings(model_name="multi-qa-distilbert-cos-v1")
+    vector_store = Chroma.from_documents(chunks, embeddings, collection_name="bajaj_boxer")
+    return vector_store
+
+# Paso 3: Configurar el sistema RAG
+def setup_rag(vector_store):
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-2.0-flash",
+        google_api_key=api_key,
+        temperature=0.2
+    )
+    
+    # Prompt personalizado para tono natural y cordial
+    prompt_template = """
+    Eres un asistente experto en motocicletas Bajaj Boxer CT100 KS. 
+    Tu trabajo es ayudar a los usuarios con información técnica, mantenimiento y operación de esta motocicleta específica.
+
+    CONTEXTO RELEVANTE DE LA DOCUMENTACIÓN:
+    {context}
+
+    PREGUNTA DEL USUARIO: {question}
+
+    INSTRUCCIONES PARA TU RESPUESTA:
+    - Responde ÚNICAMENTE sobre la Bajaj Boxer CT100 KS
+    - Usa un tono cordial, natural y profesional en español
+    - Basa tu respuesta en la información del contexto proporcionado
+    - Si la información está en una tabla, incluye los valores específicos
+    - Si la información no está en el contexto, dilo claramente
+    - Proporciona respuestas prácticas y útiles para el usuario
+    - Incluye detalles técnicos relevantes cuando sea apropiado
+    - Si mencionas especificaciones técnicas, cita los valores exactos
+    - Mantén la respuesta completa pero concisa
+
+    RESPUESTA:
+    """ 
+    prompt = PromptTemplate(input_variables=["question", "context"], template=prompt_template)
+    
+    retriever = vector_store.as_retriever(search_kwargs={"k": 8})
+    rag_chain = RetrievalQA.from_chain_type(
+        llm=llm,
+        chain_type="stuff",
+        retriever=retriever,
+        return_source_documents=True,
+        chain_type_kwargs={"prompt": prompt}
+    )
+    return rag_chain
+
+# Paso 4: Ciclo interactivo en consola
 def main():
-    # Configuración
-    API_KEY = "AIzaSyDHgW3Dqou631Yb2BQV1eHPzv2OCXUfIR0"  # Tu clave API
-    DOCS_FOLDER = "documentos"  # Carpeta con PDFs
+    print("Cargando documentos...")
+    chunks = load_and_chunk_pdfs()
+    print(f"Se cargaron {len(chunks)} fragmentos de documentos.")
+    print_document_samples(chunks)  # Agregar esta línea
     
-    # Crear carpeta si no existe
-    os.makedirs(DOCS_FOLDER, exist_ok=True)
+    print("Creando base de datos vectorial...")
+    vector_store = create_vector_store(chunks)
     
-    # Inicializar asistente
-    assistant = BajajRAGAssistant(API_KEY, DOCS_FOLDER)
+    print("Configurando sistema RAG...")
+    rag_chain = setup_rag(vector_store)
     
-    # Cargar documentos
-    assistant.load_documents()
+    print("\n¡Asistente virtual para Bajaj Boxer CT100 KS listo!")
+    print("Escribe tu pregunta (o 'salir' para terminar):")
     
-    # Modo interactivo
-    assistant.interactive_mode()
+    while True:
+        query = input("🧠> ")
+        if query.lower() == ["salir", "quit", "exit"]:
+            break
+        
+        result = rag_chain.invoke({"query": query})
+        print("\nRespuesta 🤖:", result["result"])
+        #print("\nFuentes:")
+        #for doc in result["source_documents"]:
+        #    print(f"- {doc.metadata.get('source', 'Desconocido')}: {doc.page_content[:100]}...")
+    
+    print("¡Gracias por usar el asistente!")
+
+def print_document_samples(chunks):
+    print("\nMuestras de documentos cargados:")
+    for i, chunk in enumerate(chunks[:3]):  # Mostrar primeros 3 chunks
+        print(f"\nChunk {i+1}:")
+        print(f"Fuente: {chunk.metadata.get('source')}")
+        print(f"Página: {chunk.metadata.get('page')}")
+        print("Contenido:")
+        print(chunk.page_content[:200] + "...")  # Primeros 200 caracteres
 
 if __name__ == "__main__":
     main()
