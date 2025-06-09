@@ -13,7 +13,7 @@ from langchain.schema import Document
 import speech_recognition as sr
 import pyttsx3
 import logging
-import time
+from voz_text import query_voz
 
 # Cargar variables de entorno
 load_dotenv()
@@ -160,7 +160,7 @@ def main():
     print("Di tu pregunta (o 'salir' para terminar):")
 
     while True:
-        query = escuchar_query()
+        query = query_voz()
         if not query:
             continue
         if query.lower() == "salir":
@@ -187,34 +187,10 @@ def print_document_samples(chunks):
         print("Contenido:")
         print(chunk.page_content[:200] + "...")  # Primeros 200 caracteres
 
-def escuchar_query():
-    r = sr.Recognizer()
-    with sr.Microphone() as source:
-        print("preparate para hablar en 3...")
-        time.sleep(1)
-        print("preparate para hablar en 2...")
-        time.sleep(1)
-        print("preparate para hablar en 1... ")
-        time.sleep(1)
-        print("Habla ahora. La grabación terminará cuando te quedes en silencio...")
-        time.sleep(0.5)
-        r.adjust_for_ambient_noise(source, duration=1.3)
-        audio = r.listen(source, timeout=None, phrase_time_limit=None)
-        os.makedirs("audio", exist_ok=True)
-        with open("audio/query.wav", "wb") as f:
-            f.write(audio.get_wav_data())
-        try:
-            print("Espere un momento, procesando...")
-            text = r.recognize_google(audio, language='es-ES')
-            print("Texto reconocido:", text)
-            return text
-        except:
-            print("Lo siento, no pude entender el audio.")
-            return None
 
 def decir_respuesta(texto):
     engine = pyttsx3.init()
-    engine.setProperty('rate', 170)
+    engine.setProperty('rate', 200)
     engine.setProperty('volume', 1)
     os.makedirs("audio", exist_ok=True)
     engine.say(texto)
