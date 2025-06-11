@@ -10,7 +10,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 def main():
     env = BeamRiderEnv()
     agent = DQNAgent(n_actions=3)
-    num_episodes = 500
+    num_episodes = 501
 
     for ep in range(num_episodes):
         obs = env.reset()
@@ -41,7 +41,7 @@ def main():
             print(f"Episode {ep} - Reward: {total_reward:.2f} - Epsilon: {agent.epsilon:.3f}")
 
         if ep % 100 == 0 and ep > 0:
-            save_model(agent, f"dqn_model_ep{ep}.pth")
+            save_model(agent, f"nave2/models/dqn_model_ep{ep}.pth")
 
     env.close()
     cv2.destroyAllWindows()
