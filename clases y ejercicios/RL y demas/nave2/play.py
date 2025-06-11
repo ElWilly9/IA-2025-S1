@@ -11,9 +11,9 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 def main():
     env = BeamRiderEnv()
     agent = DQNAgent(n_actions=3)
-    load_model(agent, "nave2/models/dqn_model_ep400.pth")
+    load_model(agent, "nave2/models/dqn_model_ep500.pth")
 
-    for episode in range(5):  # puedes cambiar el número de episodios a visualizar
+    for episode in range(10):  # puedes cambiar el número de episodios a visualizar
         obs = env.reset()
         frame_stack = initialize_stack(obs)
         total_reward = 0

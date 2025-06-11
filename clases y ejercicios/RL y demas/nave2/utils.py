@@ -2,6 +2,7 @@ import numpy as np
 import cv2
 from collections import deque
 import torch
+import matplotlib.pyplot as plt
 
 def preprocess_frame(frame, size=(84, 84)):
     """Convierte una imagen a escala de grises y la redimensiona."""
@@ -30,3 +31,30 @@ def save_model(agent, filename="dqn_model.pth"):
 def load_model(agent, filename="dqn_model.pth"):
     agent.q_net.load_state_dict(torch.load(filename))
     agent.target_net.load_state_dict(agent.q_net.state_dict())
+
+def plot_training(episodios, recompensas, epsilons):
+    """
+    Visualiza la evolución de los episodios, recompensas y valores de epsilon.
+    Args:
+        episodios (list o array): Lista de episodios.
+        recompensas (list o array): Recompensa obtenida en cada episodio.
+        epsilons (list o array): Valor de epsilon en cada episodio.
+    """
+    fig, ax1 = plt.subplots()
+
+    color = 'tab:blue'
+    ax1.set_xlabel('Episodio')
+    ax1.set_ylabel('Recompensa', color=color)
+    ax1.plot(episodios, recompensas, color=color, label='Recompensa')
+    ax1.tick_params(axis='y', labelcolor=color)
+
+    ax2 = ax1.twinx()  # Instancia un segundo eje que comparte el mismo eje x
+
+    color = 'tab:red'
+    ax2.set_ylabel('Epsilon', color=color)
+    ax2.plot(episodios, epsilons, color=color, linestyle='--', label='Epsilon')
+    ax2.tick_params(axis='y', labelcolor=color)
+
+    fig.tight_layout()
+    plt.title('Evolución de Recompensa y Epsilon por Episodio')
+    plt.show()

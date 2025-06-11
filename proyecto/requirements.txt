@@ -16,4 +16,6 @@ pypdf>=4.0.1
 pypdf2
 sentence-transformers
 dotenv
+gtts
+playsound
 langchain_chroma
