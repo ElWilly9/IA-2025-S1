@@ -17,3 +17,4 @@ pypdf2
 sentence-transformers
 dotenv
 langchain_chroma
+groq
