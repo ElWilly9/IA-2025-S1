@@ -27,6 +27,9 @@ PERSIST_DIR = "./chroma_db"
 CHUNK_SIZE = 1000  
 CHUNK_OVERLAP = 100  
 
+def limpiar_consola():
+    os.system('cls' if os.name == 'nt' else 'clear')
+
 # Paso 1: Cargar y chunkear PDFs
 def load_and_chunk_pdfs():
     documents = []
@@ -71,7 +74,8 @@ def load_and_chunk_pdfs():
 
 # Paso 2: Crear o cargar base de datos vectorial
 def create_or_load_vector_store(chunks, persist_directory=PERSIST_DIR, force_reload=False):
-    embeddings = HuggingFaceEmbeddings(model_name="intfloat/multilingual-e5-base")  
+    embeddings = ["intfloat/multilingual-e5-base", "embedding_model_2"]
+    llms = ["llama-3.3-70b-versatile", "gemma2-9b-it", "deepseek-r1-distill-llama-70b"]
     if force_reload and os.path.exists(persist_directory):
         import shutil
         shutil.rmtree(persist_directory)
@@ -79,13 +83,13 @@ def create_or_load_vector_store(chunks, persist_directory=PERSIST_DIR, force_rel
     if os.path.exists(persist_directory) and os.listdir(persist_directory) and not force_reload:
         vector_store = Chroma(
             collection_name="bajaj_boxer",
-            embedding_function=embeddings,
+            embedding_function=HuggingFaceEmbeddings(model_name=embeddings[0]),
             persist_directory=persist_directory
         )
     else:
         vector_store = Chroma.from_documents(
             documents=chunks,
-            embedding=embeddings,
+            embedding=HuggingFaceEmbeddings(model_name=embeddings[0]),
             collection_name="bajaj_boxer",
             persist_directory=persist_directory
         )
@@ -159,6 +163,24 @@ def setup_rag(vector_store):
     )
     return rag_chain
 
+def print_document_samples(chunks):
+    print("\nMuestras de documentos cargados:")
+    for i, chunk in enumerate(chunks[:3]):  # Mostrar primeros 3 chunks
+        print(f"\nChunk {i+1}:")
+        print(f"Fuente: {chunk.metadata.get('source')}")
+        print(f"Página: {chunk.metadata.get('page')}")
+        print("Contenido:")
+        print(chunk.page_content[:200] + "...")  # Primeros 200 caracteres
+
+def decir_respuesta(texto):
+    engine = pyttsx3.init()
+    engine.setProperty('rate', 200)
+    engine.setProperty('volume', 1)
+    os.makedirs("audio", exist_ok=True)
+    engine.say(texto)
+    engine.save_to_file(texto, "audio/answer_ia_voz.mp3")
+    engine.runAndWait()
+
 # Paso 5: Ciclo interactivo en consola
 def main():
     print("¿Quieres (C)argar la base vectorial existente o (R)ecrearla con los documentos actuales?")
@@ -183,9 +205,6 @@ def main():
     chat_history = load_chat_history()
     if chat_history:
         print("\nHistorial de conversación cargado:")
-        for entry in chat_history[-3:]:  # Mostrar las últimas 3 interacciones
-            print(f"Usuario: {entry['question']}")
-            print(f"Asistente: {entry['answer']}\n")
 
     print("\n¡Asistente virtual para Bajaj Boxer CT100 KS listo!")
     print("Di tu pregunta (o 'salir' para terminar):")
@@ -210,26 +229,10 @@ def main():
         opcion = input("\n¿Quieres hacer otra consulta? (S para salir, cualquier otra tecla para hacer una nueva pregunta): ").strip().lower()
         if opcion == "s":
             break
+        limpiar_consola()
 
     print("¡Gracias por usar el asistente!")
-
-def print_document_samples(chunks):
-    print("\nMuestras de documentos cargados:")
-    for i, chunk in enumerate(chunks[:3]):  # Mostrar primeros 3 chunks
-        print(f"\nChunk {i+1}:")
-        print(f"Fuente: {chunk.metadata.get('source')}")
-        print(f"Página: {chunk.metadata.get('page')}")
-        print("Contenido:")
-        print(chunk.page_content[:200] + "...")  # Primeros 200 caracteres
-
-def decir_respuesta(texto):
-    engine = pyttsx3.init()
-    engine.setProperty('rate', 200)
-    engine.setProperty('volume', 1)
-    os.makedirs("audio", exist_ok=True)
-    engine.say(texto)
-    engine.save_to_file(texto, "audio/answer.mp3")
-    engine.runAndWait()
+    limpiar_consola()
 
 if __name__ == "__main__":
     logging.getLogger("pdfminer").setLevel(logging.ERROR)  # Para que no salgan los warnings de pdfplumber
